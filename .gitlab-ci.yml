@@ -1,0 +1,65 @@
+stages:
+  - build-dev-stage
+  - deploy-dev-stage
+
+build-dev-job:
+  only:
+    - feat/tus-protocol
+  image: node:22-alpine
+  stage: build-dev-stage
+  before_script:
+    # Increases Node.js process memory limit to 4GB to prevent build crashes
+    - export NODE_OPTIONS=--max_old_space_size=4096
+  script:
+    # Writes the CI/CD ENV variable content into a .env file used for the build
+    - echo "$ENV" >> .env
+    # Outputs the contents of the .env file to the console for debugging purposes
+    - cat .env
+    # Fixes malformed .env by replacing ' || ' with new lines for proper formatting
+    - sed -i.bak 's/\ || /\n/g' .env
+    # Installs project dependencies
+    - npm install
+    # Builds the project for production (compiles and optimizes assets)
+    - npm run build
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - .next
+      - .env
+
+deploy-dev-job:
+  needs:
+    - build-dev-job
+  only:
+    - feat/tus-protocol
+  image: ubuntu:22.04
+  stage: deploy-dev-stage
+  before_script:
+    # Install SSH tools for GitLab Runner/Agent SSH access
+    - apt-get update -qy && apt-get install -y rsync sshpass openssh-client
+    # Install SSH agent if not present
+    - 'which ssh-agent || ( apt-get install -qq openssh-client )'
+    # Start the SSH agent
+    - eval $(ssh-agent -s)
+    # Add SSH private key to the agent
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    # Create .ssh directory if it doesn't exist
+    - mkdir -p ~/.ssh
+    # Disable strict host key checking in Docker containers
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  script:
+    # Checks if the .next folder exists before proceeding with deployment
+    - ls -la .next || echo ".next not found in deploy job"
+    # Syncs build artifacts and necessary files from the GitLab repository to the remote server
+    - sshpass rsync -a .next/ $DEV_USERNAME@$DEV_SERVER_IP:$DEV_PATH/.next
+    - sshpass rsync -a public/ $DEV_USERNAME@$DEV_SERVER_IP:$DEV_PATH/public
+    - sshpass rsync -a ecosystem.config.js $DEV_USERNAME@$DEV_SERVER_IP:$DEV_PATH
+    - sshpass rsync -a package.json $DEV_USERNAME@$DEV_SERVER_IP:$DEV_PATH
+    - sshpass rsync -a package-lock.json $DEV_USERNAME@$DEV_SERVER_IP:$DEV_PATH
+    # Syncs the .env file to the remote server if exists in local repo, or skips if not found and will generate at runtime
+    - sshpass rsync -a .env $DEV_USERNAME@$DEV_SERVER_IP:$DEV_PATH || echo "Skipping .env upload, will generate at runtime."
+    # SSH into the server, creates .env file from $ENV variable, sets up Node.js environment, and installs dependencies using npm
+    - ssh $DEV_USERNAME@$DEV_SERVER_IP "cd $DEV_PATH; echo \"$ENV\" > .env; source ~/.nvm/nvm.sh; pm2 reload ecosystem.config.js"
+    # - ssh $DEV_USERNAME@$DEV_SERVER_IP "cd $DEV_PATH; echo \"$ENV\" > .env; source ~/.nvm/nvm.sh; npm install;"
+    # SSH into the server, reloads the PM2 process manager with the updated ecosystem.config.js
+    # - ssh $DEV_USERNAME@$DEV_SERVER_IP "source ~/.nvm/nvm.sh; pm2 reload ecosystem.config.js"

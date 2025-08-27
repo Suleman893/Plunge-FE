@@ -1,0 +1,19 @@
+.table-loader {
+  inline-size: 48px;
+  block-size: 48px;
+  border-radius: 50%;
+  display: inline-block;
+  border-block-start: 3px solid #010926;
+  border-inline-end: 3px solid transparent;
+  box-sizing: border-box;
+  animation: rotation 1s linear infinite;
+}
+
+@keyframes rotation {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

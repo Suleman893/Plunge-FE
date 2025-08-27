@@ -1,0 +1,39 @@
+audio::-internal-media-controls-download-button {
+  display: none;
+}
+
+audio::-webkit-media-controls-enclosure {
+  overflow: hidden;
+}
+
+audio::-webkit-media-controls-panel {
+  inline-size: 100% !important;
+}
+
+/* Target the audio progress bar in WebKit browsers */
+audio::-webkit-media-controls-timeline {
+  background-color: #ccc;
+}
+
+audio::-webkit-media-controls-current-time-display,
+audio::-webkit-media-controls-time-remaining-display {
+  color: #666; /* Optional: style time display */
+}
+
+/* Style the entire bar */
+audio::-webkit-media-controls-timeline-container {
+  background-color: #ccc; /* Light gray for background bar */
+}
+
+/* Buffered portion - can only be changed in custom player */
+audio::-webkit-media-controls-timeline {
+  background: #999; /* fallback to darker gray, not fully accurate */
+}
+
+audio::-webkit-media-controls-panel {
+  background-color: transparent; /* make panel transparent */
+}
+
+audio::-webkit-media-controls-enclosure {
+  overflow: hidden; /* hide overflow artifacts */
+}
